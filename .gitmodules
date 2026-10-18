@@ -1,0 +1,7 @@
+
+[submodule "FAST_LIO"]
+	path = FAST_LIO
+	url = https://github.com/Johnson3176/FAST_LIO.git
+[submodule "global_localization"]
+	path = global_localization
+	url = https://github.com/Johnson3176/global_localization.git
