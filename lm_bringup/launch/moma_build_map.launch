@@ -1,0 +1,40 @@
+<launch>
+
+	<!-- 启动参数：显示开关与 PCD 保存文件名 -->
+	<arg name="rviz" default="true" />
+	<arg name="pcd_save_name" default="scans.pcd" />
+
+	<!-- MID360 建图配置 -->
+	<rosparam command="load" file="$(find lm_bringup)/config/mid360_mapping.yaml" />
+
+	<!-- 预处理与配准参数 -->
+	<param name="feature_extract_enable" type="bool" value="0"/>
+	<param name="point_filter_num" type="int" value="3"/>
+	<param name="max_iteration" type="int" value="3" />
+	<param name="filter_size_surf" type="double" value="0.5" />
+	<param name="filter_size_map" type="double" value="0.5" />
+	<param name="cube_side_length" type="double" value="1000" />
+	<param name="runtime_pos_log_enable" type="bool" value="0" />
+
+	<!-- 保存文件名传给 FAST_LIO，保存目录由其源码决定 -->
+	<param name="pcd_save_name" type="string" value="$(arg pcd_save_name)" />
+
+    <!-- 启动激光惯性里程计与增量建图 -->
+    <node pkg="fast_lio" type="fastlio_mapping" name="laserMapping" output="screen" />
+
+	<!-- 建图专用 RViz -->
+	<group if="$(arg rviz)">
+	<node launch-prefix="nice" pkg="rviz" type="rviz" name="rviz" args="-d $(find lm_bringup)/rviz/moma_build_map.rviz" />
+	</group>
+
+	<!-- OctoMap 与二维投影地图 -->
+	<include file="$(find lm_bringup)/launch/Pointcloud2Map.launch">
+	</include>
+
+	<!-- 机器人静态外参：body→base_link -->
+	<node pkg="tf2_ros" type="static_transform_publisher" name="tf_pub_1" args="-0.10 -0.11 0 0 0 0 body base_link" />
+
+	<!-- 建图参考坐标：odom→robot_foot_init，供地图投影使用 -->
+	<node pkg="tf2_ros" type="static_transform_publisher" name="tf_pub_2" args="-0.10 -0.11 0 0 0 0 odom robot_foot_init" />
+
+</launch>

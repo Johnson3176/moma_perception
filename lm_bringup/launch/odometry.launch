@@ -1,0 +1,22 @@
+<launch>
+
+  <!-- 设备配置：雷达、IMU、噪声及外参 -->
+  <arg name="config" default="$(find lm_bringup)/config/mid360_localize.yaml"/>
+
+  <!-- 先加载 YAML，再覆盖项目运行参数 -->
+  <rosparam command="load" file="$(arg config)"/>
+
+  <!-- 预处理与配准 -->
+  <param name="feature_extract_enable" value="false"/>
+  <param name="point_filter_num" value="3"/>
+  <param name="max_iteration" value="3"/>
+  <param name="filter_size_surf" value="0.5"/>
+  <param name="filter_size_map" value="0.5"/>
+  <param name="cube_side_length" value="1000.0"/>
+
+  <!-- 定位模式关闭地图保存 -->
+  <param name="pcd_save/pcd_save_en" value="false"/>
+
+  <!-- 启动 FAST_LIO，输出点云、里程计和 odom→body TF -->
+  <node pkg="fast_lio" type="fastlio_mapping" name="laserMapping" output="screen"/>
+</launch>

@@ -1,0 +1,50 @@
+<launch>
+  <!-- 地图路径：三维 PCD 与二维 YAML 均需提供 -->
+  <arg name="map" default="$(find fast_lio)/PCD/scans.pcd"/>
+  <arg name="2dmap" default="$(find fast_lio)/PCD/scans.yaml"/>
+
+  <!-- 时间与配置文件：加载里程计的设备配置 -->
+  <arg name="use_sim_time" default="false"/>
+  <arg name="odom_config" default="$(find lm_bringup)/config/mid360_localize.yaml"/>
+
+  <!-- RViz 显示开关 -->
+  <arg name="rviz" default="true"/>
+
+  <!-- 机器人外参：x y z yaw pitch roll，位置 m、角度 rad -->
+  <arg name="body_to_base_link" default="-0.32 0 -0.79 0 0 0"/>
+
+  <!-- 全局时钟：回放 rosbag 时按需启用仿真时间 -->
+  <param name="use_sim_time" value="$(arg use_sim_time)"/>
+
+  <!-- 启动里程计：雷达驱动需另行启动 -->
+  <include file="$(find lm_bringup)/launch/odometry.launch">
+    <arg name="config" value="$(arg odom_config)"/>
+  </include>
+
+  <!-- 发布先验点云地图，供定位节点接收 -->
+  <node pkg="pcl_ros" type="pcd_to_pointcloud" name="map_publisher" output="screen"
+        args="&quot;$(arg map)&quot; 5 _frame_id:=map cloud_pcd:=/map"/>
+
+  <!-- 原版定位节点：直接启动，不 include 定位包的 launch -->
+  <node pkg="global_localization" type="global_localization.py" name="global_localization" output="screen"/>
+  <node pkg="global_localization" type="transform_fusion.py" name="transform_fusion" output="screen"/>
+  <node pkg="global_localization" type="publish_initial_pose.py" name="publish_initial_pose" output="screen"/>
+
+  <!-- 集成 RViz：由 bringup 自行维护，不引用定位包的显示配置 -->
+  <node if="$(arg rviz)" pkg="rviz" type="rviz" name="localization_rviz"
+        args="-d $(find lm_bringup)/rviz/moma_localize.rviz"/>
+
+  <!-- 二维地图：输出 prior_map，避免与三维 map 话题冲突 -->
+  <node pkg="map_server" type="map_server" name="prior_map_server"
+        args="&quot;$(arg 2dmap)&quot;" >
+    <remap from="map" to="prior_map"/>
+    <remap from="map_metadata" to="prior_map_metadata"/>
+  </node>
+
+  <!-- 点云转扫描：供导航等下游使用 -->
+  <include file="$(find lm_bringup)/launch/PointsCloud2toLaserscan.launch"/>
+
+  <!-- 静态机体外参：统一由此处发布 body→base_link -->
+  <node pkg="tf2_ros" type="static_transform_publisher"
+        name="body_to_base_link" args="$(arg body_to_base_link) body base_link"/>
+</launch>
